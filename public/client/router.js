@@ -21,11 +21,11 @@ Shortly.Router = Backbone.Router.extend({
   },
 
   create: function(){
-    this.swapView(new Shortly.SignupView());
+    this.swapView(new Shortly.createLinkView());
   },
 
   signup: function(){
-    this.swapView();
+    this.swapView(new Shortly.signupView());
   }
 
 });

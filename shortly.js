@@ -39,7 +39,7 @@ function(req, res) {
 
 app.get('/login',
   function(req,res){
-    res.render('index');
+    res.render('login');
   });
 
 app.get('/signup',
@@ -96,7 +96,6 @@ app.post('/signup',
   function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  var userId;
   // var salt = genHash(password);
   // console.log(salt);
   bcrypt.genSaltAsync(10).then(function(salt){
@@ -105,28 +104,48 @@ app.post('/signup',
         .insert({username: username, password: hash})
         .then(function(id){
           console.log('User created with ID #' + id);
-          //generate token by hashing date
-          bcrypt.hashAsync(Date.now(),null,null).then(function(dateHash){
-            db.knex('tokens')
-              .insert({token: dateHash, userid: id}).then(function(id){
-                res.cookie('token', dateHash);
-                res.status(201).send();
-              });
-          });
-
-        });
-
-        //store token in tokens table
-        //send toekn in cookie & redirect to homepage (logged in)
+          setToken(id,res);
+      });
     });
   });
-
-
-
-
-
-  // res.send(200);
 });
+
+var setToken = function(userID,res){
+  bcrypt.hashAsync(Date.now(),null,null).then(function(dateHash){
+    db.knex('tokens')
+      .insert({token: dateHash, userid: userID}).then(function(id){
+        res.cookie('token', dateHash);
+        res.redirect('/');
+      });
+  });
+};
+
+
+
+
+app.post('/login',
+  function(req,res){
+    var username = req.body.username;
+    var password = req.body.password;
+    db.knex('users')
+      .where('username',username)
+      .select('password','id').then(function(result){
+        bcrypt.compareAsync(password,result[0].password)
+        .then(function(match){
+          if (match){
+            setToken(result[0].id,res);
+          }
+          else res.send(403);
+        });
+      });
+
+
+
+
+  //     // .then(function(){
+  //     //   res.send(200);
+  //     // });
+  });
 
 
 /************************************************************/
