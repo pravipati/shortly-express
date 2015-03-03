@@ -63,7 +63,8 @@ db.knex.schema.hasTable('tokens').then(function(exists) {
     db.knex.schema.createTable('tokens', function (token) {
       token.string('token', 255).primary();
       token.integer('userid');
-      token.timestamps();
+      token.timestamp('created_at');
+      token.timestamp('updated_at');
     }).then(function (table) {
       console.log('Created Table', table);
     });

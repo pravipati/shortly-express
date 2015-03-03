@@ -5,7 +5,7 @@ var bodyParser = require('body-parser');
 var urlParse = require('url');
 var Promise = require('bluebird');
 var bcrypt = Promise.promisifyAll(require('bcrypt-nodejs'));
-var cookieP = require('cookie-parser');
+var cookieParser = require('cookie-parser');
 var cookie = require('cookie');
 
 var db = require('./app/config');
@@ -25,16 +25,20 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-
+app.use(cookieParser());
 
 app.get('/',
 function(req, res) {
-  res.render('index');
+  sessionCheck(req,res, function(){
+    res.render('index');
+  });
 });
 
 app.get('/create',
-function(req, res) {
-  res.render('index');
+function(req, res, checked) {
+  sessionCheck(req,res, function(){
+    res.render('index');
+  });
 });
 
 app.get('/login',
@@ -49,8 +53,10 @@ function(req, res) {
 
 app.get('/links',
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
+sessionCheck(req,res, function(){
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
   });
 });
 
@@ -113,7 +119,7 @@ app.post('/signup',
 var setToken = function(userID,res){
   bcrypt.hashAsync(Date.now(),null,null).then(function(dateHash){
     db.knex('tokens')
-      .insert({token: dateHash, userid: userID}).then(function(id){
+      .insert({token: dateHash, userid: userID, created_at: Date.now(), updated_at: Date.now()}).then(function(id){
         res.cookie('token', dateHash);
         res.redirect('/');
       });
@@ -130,22 +136,48 @@ app.post('/login',
     db.knex('users')
       .where('username',username)
       .select('password','id').then(function(result){
+        if (result.length === 0) res.redirect('/signup');
         bcrypt.compareAsync(password,result[0].password)
         .then(function(match){
           if (match){
             setToken(result[0].id,res);
           }
-          else res.send(403);
+          else res.redirect('/login');
         });
       });
-
-
-
-
-  //     // .then(function(){
-  //     //   res.send(200);
-  //     // });
   });
+
+app.post('/logout',
+  function(req,res){
+  var token = req.cookies.token;
+  db.knex('tokens')
+    .where('token',token)
+    .del()
+    .then(function(deleted){
+      console.log('Removed ' + deleted + ' tokens from authorized users.');
+      res.redirect('/signup');
+    });
+});
+
+var sessionCheck = function(req,res, callback){
+var token = req.cookies.token;
+console.log('cookies from session check ' + req.cookies);
+if (!token) res.redirect('/signup');
+db.knex('tokens')
+  .where('token',token)
+  .then(function(result){
+    if(result.length === 0 || result[0].created_at + 86400000 < Date.now()){
+      res.redirect('/login');
+    }
+    else callback();
+  });
+};
+//get token from cookie
+//check token against database
+//if token is in database & not expired
+//proceed
+//else redirect to login page
+
 
 
 /************************************************************/
