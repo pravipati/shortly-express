@@ -5,6 +5,8 @@ var bodyParser = require('body-parser');
 var urlParse = require('url');
 var Promise = require('bluebird');
 var bcrypt = Promise.promisifyAll(require('bcrypt-nodejs'));
+var cookieP = require('cookie-parser');
+var cookie = require('cookie');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -99,18 +101,31 @@ app.post('/signup',
   // console.log(salt);
   bcrypt.genSaltAsync(10).then(function(salt){
     bcrypt.hashAsync(password,salt,null).then(function(hash){
-      console.log('password: ' + password + '\nhash: ' + hash);
+      db.knex('users')
+        .insert({username: username, password: hash})
+        .then(function(id){
+          console.log('User created with ID #' + id);
+          //generate token by hashing date
+          bcrypt.hashAsync(Date.now(),null,null).then(function(dateHash){
+            db.knex('tokens')
+              .insert({token: dateHash, userid: id}).then(function(id){
+                res.cookie('token', dateHash);
+                res.status(201).send();
+              });
+          });
+
+        });
+
+        //store token in tokens table
+        //send toekn in cookie & redirect to homepage (logged in)
     });
   });
 
-  db.knex('users')
-    .insert({username: username, password: password})
-    .then(function(id){
-    });
 
 
 
-  res.send(200);
+
+  // res.send(200);
 });
 
 
