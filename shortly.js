@@ -161,7 +161,7 @@ app.post('/logout',
 
 var sessionCheck = function(req,res, callback){
 var token = req.cookies.token;
-console.log('cookies from session check ' + req.cookies);
+// console.log(req.cookies);
 if (!token) res.redirect('/signup');
 db.knex('tokens')
   .where('token',token)
